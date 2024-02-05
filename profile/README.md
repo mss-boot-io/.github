@@ -12,7 +12,7 @@ mss-boot-io is A microservice rapid development framework.
 - gitee: [https://gitee.com/mss-boot-io](https://gitee.com/mss-boot-io)
 
 ## projects list
-- [mss-boot-admin-api](https://github.com/mss-boot-io/mss-boot-admin-api): mss-boot-admin-api is a backend project based on mss-boot-admin
+- [mss-boot-admin](https://github.com/mss-boot-io/mss-boot-admin): mss-boot-admin-api is a backend project based on mss-boot-admin
 - [mss-boot-admin-antd](https://github.com/mss-boot-io/mss-boot-admin-antd): mss-boot-admin-antd is a front-end project based on umi v4 for mss-boot-admin
 - [workflow-tools-go](https://github.com/mss-boot-io/workflow-tools-go): workflow tools for monorepo
 - [cd-template](https://github.com/mss-boot-io/cd-template): generate k8s config yaml for cd 
