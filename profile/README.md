@@ -21,7 +21,7 @@ mss-boot-io is A microservice rapid development framework.
 ## 📨 Interactive
 <table>
    <tr>
-    <td><a href="https://t.me/+318z6NULrw81N2E1"><img src="https://th.bing.com/th/id/OIP.lYN2s7Dv1a4pLAVUaXMCVgAAAA?rs=1&pid=ImgDetMain" width="180px"></a></td>
+    <td><a href="https://t.me/+318z6NULrw81N2E1" target="_blank"><img src="https://th.bing.com/th/id/OIP.lYN2s7Dv1a4pLAVUaXMCVgAAAA?rs=1&pid=ImgDetMain" width="180px"></a></td>
     <td><img src="https://mss-boot-io.github.io/.github/images/wechat.jpg" width="180px"></td>
     <td><img src="https://mss-boot-io.github.io/.github/images/wechat-mp.jpg" width="180px"></td>
     <td><img src="https://mss-boot-io.github.io/.github/images/qq-group.jpg" width="200px"></td>
