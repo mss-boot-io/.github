@@ -1,0 +1,98 @@
+name: Reusable PR Guard
+
+on:
+  workflow_call:
+    inputs:
+      max_changed_files:
+        description: Warn when a pull request changes more files than this.
+        required: false
+        type: number
+        default: 120
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check pull request metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MAX_CHANGED_FILES: ${{ inputs.max_changed_files }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PR_NUMBER:-}" ]; then
+            echo "PR Guard only checks pull_request events."
+            exit 0
+          fi
+
+          gh pr view "$PR_NUMBER" --repo "$REPOSITORY" --json title,body,changedFiles,additions,deletions,files > pr.json
+
+          node <<'NODE'
+          const fs = require('fs');
+          const pr = JSON.parse(fs.readFileSync('pr.json', 'utf8'));
+          const errors = [];
+          const warnings = [];
+          const title = pr.title || '';
+          const body = pr.body || '';
+          const files = pr.files || [];
+          const allowedTitle = /^(feat|fix|docs|test|refactor|ci|chore|build|perf|revert)(\([^)]+\))?!?:\s.+/i;
+
+          if (!allowedTitle.test(title)) {
+            errors.push('PR title must follow Conventional Commits, for example: fix(admin): handle empty language header.');
+          }
+
+          const requiredBodySignals = [
+            { name: 'tests', pattern: /(test|tests|测试|验证)/i },
+            { name: 'docs', pattern: /(doc|docs|documentation|文档)/i },
+            { name: 'security', pattern: /(security|安全)/i },
+            { name: 'release', pattern: /(release|compatibility|migration|rollback|发布|兼容|迁移|回滚)/i },
+          ];
+          for (const item of requiredBodySignals) {
+            if (!item.pattern.test(body)) {
+              errors.push(`PR body must describe ${item.name} impact.`);
+            }
+          }
+
+          const maxChangedFiles = Number(process.env.MAX_CHANGED_FILES || 120);
+          if (Number(pr.changedFiles || 0) > maxChangedFiles) {
+            warnings.push(`Large PR: ${pr.changedFiles} files changed. Consider splitting if review becomes slow.`);
+          }
+
+          const changedPaths = files.map((file) => file.path || '');
+          const changedCode = changedPaths.some((path) => /\.(go|ts|tsx|js|jsx|less|css|sql|yaml|yml|json)$/.test(path));
+          const changedDocs = changedPaths.some((path) => /(^docs\/|^aigc\/|README|CHANGELOG|\.md$)/i.test(path));
+          const changedApiOrConfig = changedPaths.some((path) => /(api|apis|router|routes|swagger|openapi|config|deploy|compose|k8s|\.env)/i.test(path));
+
+          if (changedApiOrConfig && !changedDocs) {
+            errors.push('API/config/deployment changes must include docs, README, changelog, or AI memory updates.');
+          } else if (changedCode && !changedDocs) {
+            warnings.push('Code changed without docs updates. This is OK only when behavior is unchanged.');
+          }
+
+          const summary = [
+            '## PR Guard',
+            '',
+            `- Title: ${title}`,
+            `- Files changed: ${pr.changedFiles}`,
+            `- Additions: ${pr.additions}`,
+            `- Deletions: ${pr.deletions}`,
+            '',
+          ];
+          if (warnings.length) {
+            summary.push('### Warnings', ...warnings.map((item) => `- ${item}`), '');
+          }
+          if (errors.length) {
+            summary.push('### Errors', ...errors.map((item) => `- ${item}`), '');
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${summary.join('\n')}\n`);
+            console.error(errors.join('\n'));
+            process.exit(1);
+          }
+
+          summary.push('No blocking PR metadata issues found.');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${summary.join('\n')}\n`);
+          NODE

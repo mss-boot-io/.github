@@ -1,0 +1,42 @@
+name: Reusable Docs Drift
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  docs-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check documentation drift
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PR_NUMBER:-}" ]; then
+            echo "Docs drift only checks pull_request events."
+            exit 0
+          fi
+
+          gh pr view "$PR_NUMBER" --repo "$REPOSITORY" --json files > pr-files.json
+
+          node <<'NODE'
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync('pr-files.json', 'utf8'));
+          const paths = (data.files || []).map((file) => file.path || '');
+          const docsChanged = paths.some((path) => /(^docs\/|^aigc\/|README|CHANGELOG|\.md$)/i.test(path));
+          const contractChanged = paths.some((path) => /(api|apis|router|routes|swagger|openapi|config|deploy|compose|k8s|\.env|migration|sql)/i.test(path));
+          const workflowChanged = paths.some((path) => /^\.github\/workflows\//.test(path));
+
+          if ((contractChanged || workflowChanged) && !docsChanged) {
+            console.error('Docs drift check failed: API/config/deployment/workflow changes require docs, README, changelog, or AI memory updates.');
+            process.exit(1);
+          }
+
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `Docs drift check passed for ${paths.length} changed files.\n`);
+          NODE

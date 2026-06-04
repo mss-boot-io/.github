@@ -1,0 +1,24 @@
+name: Documentation
+description: Report missing, outdated, or confusing documentation.
+title: "docs: "
+labels:
+  - area/docs
+  - needs-triage
+body:
+  - type: input
+    id: page
+    attributes:
+      label: Page or file
+      placeholder: https://docs.mss-boot-io.top/...
+    validations:
+      required: true
+  - type: textarea
+    id: issue
+    attributes:
+      label: What should change?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Suggested wording or structure

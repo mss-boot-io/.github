@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://docs.mss-boot-io.top
+    about: Read the public documentation first.
+  - name: Security reports
+    url: https://github.com/mss-boot-io/.github/security/policy
+    about: Do not report vulnerabilities as public issues.

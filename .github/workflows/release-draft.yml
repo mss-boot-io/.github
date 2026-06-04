@@ -1,0 +1,56 @@
+name: Reusable Release Draft
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  release-notes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate release notes
+        run: |
+          set -euo pipefail
+          current_ref="${GITHUB_REF_NAME:-HEAD}"
+          previous_tag="$(git describe --tags --abbrev=0 "${current_ref}^" 2>/dev/null || true)"
+          range=""
+          if [ -n "$previous_tag" ]; then
+            range="${previous_tag}..${current_ref}"
+          fi
+
+          {
+            echo "# Release notes"
+            echo
+            echo "- Repository: ${GITHUB_REPOSITORY}"
+            echo "- Ref: ${current_ref}"
+            if [ -n "$previous_tag" ]; then
+              echo "- Previous tag: ${previous_tag}"
+            else
+              echo "- Previous tag: not found"
+            fi
+            echo
+            echo "## Changes"
+            echo
+            git log --no-merges --pretty=format:'- %s (%h)' $range || true
+            echo
+            echo
+            echo "## Release checklist"
+            echo
+            echo "- [ ] CI passed."
+            echo "- [ ] Security scans reviewed."
+            echo "- [ ] Upgrade or rollback notes are documented."
+            echo "- [ ] Docker image digest or frontend deployment target is recorded when applicable."
+          } > release-notes.md
+
+      - name: Upload release notes
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: release-notes.md
