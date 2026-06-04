@@ -1,0 +1,19 @@
+name: Question
+description: Ask a usage or integration question.
+title: "question: "
+labels:
+  - type/question
+  - needs-triage
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: Include what you tried and what result you expected.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Repository, version, deployment environment, logs, or screenshots.

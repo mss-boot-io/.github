@@ -1,0 +1,67 @@
+name: Reusable Issue Triage
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Triage issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_ACTION: ${{ github.event.action }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ISSUE_NUMBER:-}" ]; then
+            echo "Issue triage only checks issue events."
+            exit 0
+          fi
+
+          node <<'NODE'
+          const { execFileSync } = require('child_process');
+
+          const repo = process.env.REPOSITORY;
+          const issueNumber = process.env.ISSUE_NUMBER;
+          const title = process.env.ISSUE_TITLE || '';
+          const body = process.env.ISSUE_BODY || '';
+          const text = `${title}\n${body}`.toLowerCase();
+          const labels = new Map([
+            ['needs-triage', ['FBCA04', 'Needs maintainer triage.']],
+          ]);
+
+          const add = (name, color, description) => labels.set(name, [color, description]);
+          if (/(bug|panic|error|exception|失败|报错|错误|无法)/i.test(text)) add('type/bug', 'D73A4A', 'Confirmed or likely defect.');
+          if (/(feature|enhancement|proposal|建议|新增|支持)/i.test(text)) add('type/feature', 'A2EEEF', 'Feature proposal or enhancement.');
+          if (/(docs|readme|文档|说明)/i.test(text)) add('area/docs', '5319E7', 'Documentation, examples, README, or AI memory.');
+          if (/(ui|antd|react|page|页面|前端)/i.test(text)) add('area/frontend', '1D76DB', 'Web console, UI, routing, or frontend build.');
+          if (/(api|backend|go|gin|数据库|后端|接口)/i.test(text)) add('area/backend', '0E8A16', 'Backend, API, storage, jobs, or services.');
+          if (/(deploy|kubernetes|cloudflare|ci|workflow|release|部署|发布)/i.test(text)) add('area/devops', 'C5DEF5', 'CI, release, deployment, Kubernetes, or Cloudflare.');
+
+          const tooShort = body.trim().length < 120;
+          if (tooShort) add('needs-info', 'F9D0C4', 'Waiting for reproducible details.');
+
+          for (const [name, [color, description]] of labels) {
+            try {
+              execFileSync('gh', ['api', `repos/${repo}/labels`, '-f', `name=${name}`, '-f', `color=${color}`, '-f', `description=${description}`], { stdio: 'ignore' });
+            } catch {
+              // Label likely already exists.
+            }
+          }
+
+          execFileSync('gh', ['issue', 'edit', issueNumber, '--repo', repo, '--add-label', [...labels.keys()].join(',')], { stdio: 'inherit' });
+
+          if (tooShort) {
+            const marker = '<!-- mss-boot-issue-triage-needs-info -->';
+            const comment = `${marker}\nThanks for opening this issue. Please add repository/version, environment, expected behavior, actual behavior, and reproduction steps so maintainers or AI agents can verify it.`;
+            execFileSync('gh', ['issue', 'comment', issueNumber, '--repo', repo, '--body', comment], { stdio: 'inherit' });
+          }
+          NODE

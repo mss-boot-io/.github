@@ -1,0 +1,45 @@
+- name: area/backend
+  color: "0E8A16"
+  description: Backend, API, storage, jobs, or services.
+- name: area/frontend
+  color: "1D76DB"
+  description: Web console, UI, routing, or frontend build.
+- name: area/docs
+  color: "5319E7"
+  description: Documentation, examples, README, or AI memory.
+- name: area/devops
+  color: "C5DEF5"
+  description: CI, release, deployment, Kubernetes, or Cloudflare.
+- name: type/bug
+  color: "D73A4A"
+  description: Confirmed or likely defect.
+- name: type/feature
+  color: "A2EEEF"
+  description: Feature proposal or enhancement.
+- name: type/question
+  color: "D876E3"
+  description: Usage or integration question.
+- name: type/security
+  color: "B60205"
+  description: Security-sensitive public tracking only.
+- name: needs-triage
+  color: "FBCA04"
+  description: Needs maintainer triage.
+- name: needs-info
+  color: "F9D0C4"
+  description: Waiting for reproducible details.
+- name: candidate/good-first-issue
+  color: "7057FF"
+  description: Automation suggests this may suit first-time contributors.
+- name: good first issue
+  color: "7057FF"
+  description: Confirmed by a maintainer as suitable for first-time contributors.
+- name: help wanted
+  color: "008672"
+  description: Maintainers welcome external contribution on this issue.
+- name: release-blocker
+  color: "B60205"
+  description: Blocks beta or production release.
+- name: breaking-change
+  color: "D93F0B"
+  description: Requires migration, compatibility notes, or special release handling.

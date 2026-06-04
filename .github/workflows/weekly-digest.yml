@@ -1,0 +1,82 @@
+name: Reusable Weekly Digest
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+  actions: read
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create weekly digest issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          node <<'NODE'
+          const { execFileSync } = require('child_process');
+          const repo = process.env.REPOSITORY;
+          const sinceDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+          const since = sinceDate.toISOString();
+
+          function gh(args) {
+            return JSON.parse(execFileSync('gh', ['api', ...args], { encoding: 'utf8' }));
+          }
+
+          function api(path) {
+            return gh([path]);
+          }
+
+          function ensureLabel(name, color, description) {
+            try {
+              execFileSync('gh', ['api', `repos/${repo}/labels`, '-f', `name=${name}`, '-f', `color=${color}`, '-f', `description=${description}`], { stdio: 'ignore' });
+            } catch {
+              // Label likely already exists.
+            }
+          }
+
+          const issues = api(`repos/${repo}/issues?state=all&since=${encodeURIComponent(since)}&per_page=100`);
+          const workflowRuns = api(`repos/${repo}/actions/runs?created=>=${since.slice(0, 10)}&per_page=100`).workflow_runs || [];
+          const issueItems = issues.filter((item) => !item.pull_request);
+          const prItems = issues.filter((item) => item.pull_request);
+          const failedRuns = workflowRuns.filter((run) => run.conclusion === 'failure');
+          const now = new Date();
+          const week = `${now.getUTCFullYear()}-W${String(Math.ceil((((now - new Date(Date.UTC(now.getUTCFullYear(), 0, 1))) / 86400000) + 1) / 7)).padStart(2, '0')}`;
+          const title = `Weekly Digest ${week}`;
+          const body = [
+            `Automated weekly digest for \`${repo}\`.`,
+            '',
+            `Window since: ${since}`,
+            '',
+            '| Metric | Count |',
+            '| --- | ---: |',
+            `| New or updated issues | ${issueItems.length} |`,
+            `| New or updated pull requests | ${prItems.length} |`,
+            `| Workflow runs | ${workflowRuns.length} |`,
+            `| Failed workflow runs | ${failedRuns.length} |`,
+            '',
+            'Maintainer checklist:',
+            '',
+            '- [ ] Triage `needs-triage` issues.',
+            '- [ ] Promote suitable tasks to `candidate/good-first-issue`.',
+            '- [ ] Review failed workflows and release blockers.',
+          ].join('\n');
+
+          ensureLabel('area/devops', 'C5DEF5', 'CI, release, deployment, Kubernetes, or Cloudflare.');
+          ensureLabel('needs-triage', 'FBCA04', 'Needs maintainer triage.');
+
+          const query = encodeURIComponent(`repo:${repo} in:title "${title}"`);
+          const existing = gh([`search/issues?q=${query}`]).items?.find((item) => item.title === title);
+          if (existing) {
+            execFileSync('gh', ['issue', 'edit', String(existing.number), '--repo', repo, '--body', body], { stdio: 'inherit' });
+          } else {
+            execFileSync('gh', ['issue', 'create', '--repo', repo, '--title', title, '--body', body, '--label', 'area/devops,needs-triage'], { stdio: 'inherit' });
+          }
+          NODE
