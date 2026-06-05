@@ -40,6 +40,7 @@ jobs:
           const title = pr.title || '';
           const body = pr.body || '';
           const files = pr.files || [];
+          const isDependabot = /^build\(deps(?:-dev)?\)!?:|^chore\(deps(?:-dev)?\)!?:/i.test(title);
           const allowedTitle = /^(feat|fix|docs|test|refactor|ci|chore|build|perf|revert)(\([^)]+\))?!?:\s.+/i;
 
           if (!allowedTitle.test(title)) {
@@ -54,7 +55,12 @@ jobs:
           ];
           for (const item of requiredBodySignals) {
             if (!item.pattern.test(body)) {
-              errors.push(`PR body must describe ${item.name} impact.`);
+              const message = `PR body must describe ${item.name} impact.`;
+              if (isDependabot) {
+                warnings.push(message);
+              } else {
+                errors.push(message);
+              }
             }
           }
 
@@ -69,7 +75,12 @@ jobs:
           const changedApiOrConfig = changedPaths.some((path) => /(api|apis|router|routes|swagger|openapi|config|deploy|compose|k8s|\.env)/i.test(path));
 
           if (changedApiOrConfig && !changedDocs) {
-            errors.push('API/config/deployment changes must include docs, README, changelog, or AI memory updates.');
+            const message = 'API/config/deployment changes must include docs, README, changelog, or AI memory updates.';
+            if (isDependabot) {
+              warnings.push(message);
+            } else {
+              errors.push(message);
+            }
           } else if (changedCode && !changedDocs) {
             warnings.push('Code changed without docs updates. This is OK only when behavior is unchanged.');
           }
