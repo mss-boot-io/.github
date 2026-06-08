@@ -42,11 +42,40 @@ jobs:
             }
           }
 
+          const [owner, name] = repo.split('/');
           const issues = api(`repos/${repo}/issues?state=all&since=${encodeURIComponent(since)}&per_page=100`);
           const workflowRuns = api(`repos/${repo}/actions/runs?created=>=${since.slice(0, 10)}&per_page=100`).workflow_runs || [];
           const issueItems = issues.filter((item) => !item.pull_request);
           const prItems = issues.filter((item) => item.pull_request);
           const failedRuns = workflowRuns.filter((run) => run.conclusion === 'failure');
+          let discussionItems = [];
+          try {
+            const discussionResult = gh([
+              'graphql',
+              '-f',
+              `query=query($owner: String!, $name: String!) {
+                repository(owner: $owner, name: $name) {
+                  discussions(first: 25, orderBy: { field: UPDATED_AT, direction: DESC }) {
+                    nodes {
+                      number
+                      title
+                      updatedAt
+                      comments { totalCount }
+                      category { name }
+                    }
+                  }
+                }
+              }`,
+              '-F',
+              `owner=${owner}`,
+              '-F',
+              `name=${name}`,
+            ]);
+            discussionItems = (discussionResult.data?.repository?.discussions?.nodes || [])
+              .filter((item) => new Date(item.updatedAt) >= sinceDate);
+          } catch {
+            discussionItems = [];
+          }
           const now = new Date();
           const week = `${now.getUTCFullYear()}-W${String(Math.ceil((((now - new Date(Date.UTC(now.getUTCFullYear(), 0, 1))) / 86400000) + 1) / 7)).padStart(2, '0')}`;
           const title = `Weekly Digest ${week}`;
@@ -59,8 +88,16 @@ jobs:
             '| --- | ---: |',
             `| New or updated issues | ${issueItems.length} |`,
             `| New or updated pull requests | ${prItems.length} |`,
+            `| New or updated discussions | ${discussionItems.length} |`,
             `| Workflow runs | ${workflowRuns.length} |`,
             `| Failed workflow runs | ${failedRuns.length} |`,
+            '',
+            'Community conversion checklist:',
+            '',
+            '- [ ] Turn repeated questions into FAQ candidates.',
+            '- [ ] Convert actionable feedback into issues with source discussion links.',
+            '- [ ] Promote small, well-scoped docs/tests/review tasks to good first issue candidates.',
+            '- [ ] Record useful community memory in `mss-boot-docs/aigc`.',
             '',
             'Maintainer checklist:',
             '',
